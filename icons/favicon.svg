@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a9bff"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Casa -->
+  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M150 250 L256 156 L362 250"/>
+    <path d="M178 238 V356 H334 V238"/>
+  </g>
+  <!-- Símbolo € dentro de la casa -->
+  <text x="256" y="332" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="92" font-weight="700" fill="#ffffff" text-anchor="middle">€</text>
+</svg>

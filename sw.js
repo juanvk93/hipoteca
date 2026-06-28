@@ -8,7 +8,7 @@
 //     obsoletos.
 // ============================================================================
 
-const CACHE = 'hipoteca-v1.0.0';
+const CACHE = 'hipoteca-v1.2.0';
 
 const APP_SHELL = [
   './',
@@ -21,6 +21,7 @@ const APP_SHELL = [
   './js/impuestos.js',
   './js/euribor.js',
   './js/db.js',
+  './js/graficos.js',
   './js/changelog.js',
   './icons/favicon.svg',
   './icons/icon-192.png',

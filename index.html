@@ -65,6 +65,31 @@
               </div>
             </div>
           </div>
+          <div class="bloque-promo">
+            <label class="toggle">
+              <input type="checkbox" id="promoFijaActiva" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="toggle-label">TIN reducido inicial <em>(tipo de entrada)</em></span>
+            </label>
+            <div id="promoFijaCampos" class="grupo-promo oculto">
+              <div class="fila">
+                <div class="campo">
+                  <label for="promoFijaMeses">Meses iniciales</label>
+                  <div class="input-sufijo">
+                    <input id="promoFijaMeses" type="number" inputmode="numeric" min="1" step="1" placeholder="6" />
+                    <span class="sufijo">meses</span>
+                  </div>
+                </div>
+                <div class="campo">
+                  <label for="promoFijaTin">TIN inicial</label>
+                  <div class="input-sufijo">
+                    <input id="promoFijaTin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="3,48" />
+                    <span class="sufijo">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ===== Campos VARIABLE ===== -->
@@ -90,6 +115,31 @@
             <div class="input-sufijo">
               <input id="anosVariable" type="number" inputmode="numeric" min="1" max="40" step="1" placeholder="25" />
               <span class="sufijo">años</span>
+            </div>
+          </div>
+          <div class="bloque-promo">
+            <label class="toggle">
+              <input type="checkbox" id="promoVariableActiva" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="toggle-label">Primer periodo a tipo fijo</span>
+            </label>
+            <div id="promoVariableCampos" class="grupo-promo oculto">
+              <div class="fila">
+                <div class="campo">
+                  <label for="promoVariableMeses">Meses iniciales</label>
+                  <div class="input-sufijo">
+                    <input id="promoVariableMeses" type="number" inputmode="numeric" min="1" step="1" placeholder="12" />
+                    <span class="sufijo">meses</span>
+                  </div>
+                </div>
+                <div class="campo">
+                  <label for="promoVariableTin">TIN inicial</label>
+                  <div class="input-sufijo">
+                    <input id="promoVariableTin" type="number" inputmode="decimal" min="0" step="0.01" placeholder="2,50" />
+                    <span class="sufijo">%</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <p class="nota">El tipo aplicado será <strong>diferencial + Euríbor</strong>. El cálculo asume el Euríbor constante toda la vida del préstamo (ver escenarios más abajo).</p>
@@ -191,6 +241,86 @@
           </div>
         </details>
 
+        <!-- Bonificación (productos vinculados) -->
+        <details id="detallesBonif" class="acordeon">
+          <summary>
+            <span>Bonificación <em>(¿compensa?)</em></span>
+            <svg class="chevron" viewBox="0 0 24 24" width="20" height="20"><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="acordeon-cuerpo">
+            <label class="toggle">
+              <input type="checkbox" id="bonifActiva" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="toggle-label">Comparar con / sin bonificación</span>
+            </label>
+            <div id="bonifCampos" class="grupo-promo oculto">
+              <div class="campo">
+                <label for="bonifIncremento">Incremento del TIN sin bonificar</label>
+                <div class="input-sufijo">
+                  <input id="bonifIncremento" type="number" inputmode="decimal" min="0" step="0.05" placeholder="1,00" />
+                  <span class="sufijo">%</span>
+                </div>
+              </div>
+              <p class="nota">El coste de los productos es el campo <strong>Gastos vinculados</strong> de arriba. Compararemos el coste total contratándolos (TIN reducido) frente a no hacerlo (TIN + incremento, sin productos).</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Amortización anticipada -->
+        <details id="detallesAmort" class="acordeon">
+          <summary>
+            <span>Amortización anticipada <em>(aportaciones extra)</em></span>
+            <svg class="chevron" viewBox="0 0 24 24" width="20" height="20"><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="acordeon-cuerpo">
+            <label class="toggle">
+              <input type="checkbox" id="amortActiva" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="toggle-label">Simular aportaciones extra</span>
+            </label>
+            <div id="amortCampos" class="grupo-promo oculto">
+              <div class="campo">
+                <label for="amortImporte">Importe de la aportación</label>
+                <div class="input-sufijo">
+                  <input id="amortImporte" type="number" inputmode="decimal" min="0" step="500" placeholder="10000" />
+                  <span class="sufijo">€</span>
+                </div>
+              </div>
+              <div class="campo">
+                <label>Periodicidad</label>
+                <div class="segmented compacto seg-opciones" id="amortPeriodicidad">
+                  <button type="button" class="seg activa" data-period="unica">Única</button>
+                  <button type="button" class="seg" data-period="mensual">Mensual</button>
+                  <button type="button" class="seg" data-period="anual">Anual</button>
+                </div>
+              </div>
+              <div class="fila">
+                <div class="campo">
+                  <label for="amortMes" id="amortMesLabel">Mes de la aportación</label>
+                  <div class="input-sufijo">
+                    <input id="amortMes" type="number" inputmode="numeric" min="1" step="1" placeholder="12" />
+                    <span class="sufijo">mes</span>
+                  </div>
+                </div>
+                <div class="campo">
+                  <label for="amortComision">Comisión</label>
+                  <div class="input-sufijo">
+                    <input id="amortComision" type="number" inputmode="decimal" min="0" step="0.05" placeholder="0" />
+                    <span class="sufijo">%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="campo">
+                <label>¿Qué reducir?</label>
+                <div class="segmented compacto seg-opciones" id="amortModo">
+                  <button type="button" class="seg activa" data-modo="plazo">Reducir plazo</button>
+                  <button type="button" class="seg" data-modo="cuota">Reducir cuota</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <button type="submit" class="btn-principal">Calcular hipoteca</button>
       </form>
 
@@ -246,6 +376,17 @@
             </div>
           </div>
           <button type="button" class="btn-secundario" id="btnActualizarEuribor">Actualizar desde el BCE</button>
+          <div id="graficoEuribor" class="grafico-euribor"></div>
+        </div>
+
+        <div class="ajuste-bloque">
+          <h2>Copia de seguridad</h2>
+          <p class="muted">Guarda tus hipotecas en un archivo o impórtalas en otro dispositivo.</p>
+          <div class="btn-fila" style="margin-top:12px">
+            <button type="button" class="btn-secundario" id="btnExportarDatos">Exportar</button>
+            <button type="button" class="btn-secundario" id="btnImportarDatos">Importar</button>
+          </div>
+          <input type="file" id="inputImportar" accept="application/json,.json" hidden />
         </div>
 
         <div class="ajuste-bloque">

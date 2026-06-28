@@ -3,6 +3,39 @@
 Todas las versiones notables de la **Calculadora de Hipoteca** se documentan aquí.
 El formato sigue, de forma aproximada, [Keep a Changelog](https://keepachangelog.com/es-ES/).
 
+## [1.2.0] — 2026-06-28
+
+### Añadido
+
+- **Bonificación (¿compensa?)**: compara el coste total contratando los productos vinculados
+  (TIN reducido) frente a no contratarlos (TIN + incremento) y muestra el veredicto y el ahorro.
+- **Amortización anticipada**: simula aportaciones extra (única, mensual o anual) eligiendo
+  *reducir cuota* o *reducir plazo*, con comisión de amortización, y calcula el ahorro de
+  intereses y el tiempo ganado. Compatible con tramos (tipo de entrada y mixta).
+- **Cuadro de amortización mensual** completo (además del resumen anual) y **exportable a CSV**.
+- **Gráficos** (SVG, sin dependencias): evolución del capital pendiente en los resultados y
+  comparativa de coste (capital + intereses) en el comparador.
+- **Histórico del Euríbor** de los últimos meses desde el BCE, en Ajustes.
+- **Exportar / importar** hipotecas en un archivo JSON (copia de seguridad y traspaso entre
+  dispositivos).
+
+### Interno
+
+- Batería de tests del motor en `tests/` (ejecutable con `npm test` o `node tests/run.mjs`).
+
+## [1.1.0] — 2026-06-28
+
+### Añadido
+
+- **Tramo inicial con TIN especial (tipo de entrada)**:
+  - En hipoteca **fija**, TIN reducido durante los primeros meses (p. ej. 6 meses al 3,48 % y el
+    resto al 4,48 %).
+  - En hipoteca **variable**, el habitual **primer periodo a tipo fijo** antes de pasar a
+    Euríbor + diferencial.
+  - Los resultados muestran la cuota de los primeros meses y la del resto del plazo; la cuota del
+    resto se **recalcula sobre el saldo pendiente** al acabar la promoción, y la TAE refleja los
+    flujos reales.
+
 ## [1.0.0] — 2026-06-28
 
 ### Primera versión

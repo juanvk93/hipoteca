@@ -6,9 +6,32 @@
 //  actualización de los recursos en los dispositivos.
 // ============================================================================
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.2.0';
 
 export const CAMBIOS = [
+  {
+    version: '1.2.0',
+    fecha: '2026-06-28',
+    titulo: 'Bonificación, amortización anticipada y gráficos',
+    cambios: [
+      'Bonificación: compara el coste con y sin los productos vinculados y te dice si compensa contratarlos.',
+      'Amortización anticipada: simula aportaciones extra (única, mensual o anual) para reducir cuota o plazo, con comisión, mostrando el ahorro de intereses y tiempo.',
+      'Cuadro de amortización mensual completo, además del anual, y exportable a CSV.',
+      'Gráficos: evolución del capital pendiente y comparativa de coste entre hipotecas.',
+      'Histórico del Euríbor de los últimos meses desde el BCE.',
+      'Exportar e importar tus hipotecas en un archivo (copia de seguridad).',
+    ],
+  },
+  {
+    version: '1.1.0',
+    fecha: '2026-06-28',
+    titulo: 'Tramo inicial con TIN especial',
+    cambios: [
+      'Hipoteca fija: opción de TIN reducido los primeros meses (tipo de entrada).',
+      'Hipoteca variable: opción de primer periodo a tipo fijo antes de pasar a Euríbor + diferencial.',
+      'Los resultados muestran la cuota de los primeros meses y la del resto del plazo, con su TAE real.',
+    ],
+  },
   {
     version: '1.0.0',
     fecha: '2026-06-28',

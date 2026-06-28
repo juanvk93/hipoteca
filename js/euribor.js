@@ -81,6 +81,35 @@ export async function fetchEuriborBCE(timeoutMs = 8000) {
 }
 
 /**
+ * Obtiene el histórico del Euríbor 12 meses (últimos N meses) desde el BCE.
+ * @param {number} [meses=24]  Número de observaciones mensuales.
+ * @param {number} [timeoutMs=8000]
+ * @returns {Promise<Array<{periodo:string, valor:number}>>} Puntos ordenados por fecha.
+ */
+export async function fetchHistoricoEuribor(meses = 24, timeoutMs = 8000) {
+  const url =
+    'https://data-api.ecb.europa.eu/service/data/FM/M.U2.EUR.RT.MM.EURIBOR1YD_.HSTA' +
+    `?format=jsondata&lastNObservations=${meses}`;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const serie = data?.dataSets?.[0]?.series?.['0:0:0:0:0:0:0']?.observations;
+    const periodos = data?.structure?.dimensions?.observation?.[0]?.values || [];
+    if (!serie) throw new Error('Respuesta del BCE sin observaciones');
+    const puntos = Object.keys(serie)
+      .map((k) => ({ periodo: periodos[Number(k)]?.id || '', valor: serie[k]?.[0] }))
+      .filter((p) => typeof p.valor === 'number')
+      .sort((a, b) => a.periodo.localeCompare(b.periodo));
+    return puntos;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
  * Resuelve el valor del Euríbor a aplicar según los ajustes del usuario.
  * Prioridad:
  *   1. Valor manual, si el usuario lo ha fijado en ajustes.

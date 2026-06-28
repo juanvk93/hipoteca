@@ -143,3 +143,40 @@ export async function guardarAjustes(ajustes) {
   const db = await abrirDB();
   return promesa(tx(db, STORE_AJUSTES, 'readwrite').put({ clave: 'app', valor: ajustes }));
 }
+
+// ----------------------------------------------------------------------------
+//  Exportar / importar (copia de seguridad)
+// ----------------------------------------------------------------------------
+
+/** Genera un objeto con todas las hipotecas y los ajustes para exportar. */
+export async function exportarTodo() {
+  const hipotecas = await listarHipotecas();
+  const ajustes = await cargarAjustes();
+  return {
+    app: 'calculadora-hipoteca',
+    formato: 1,
+    exportado: Date.now(),
+    hipotecas,
+    ajustes,
+  };
+}
+
+/**
+ * Importa una lista de hipotecas como nuevos registros (sin sobrescribir las
+ * existentes; se les asigna un id nuevo).
+ * @param {Array} lista  Hipotecas a importar.
+ * @returns {Promise<number>} Número de hipotecas importadas.
+ */
+export async function importarHipotecas(lista) {
+  if (!Array.isArray(lista)) throw new Error('Formato no válido');
+  let n = 0;
+  for (const h of lista) {
+    if (!h || !h.config) continue; // ignora entradas corruptas
+    const reg = { ...h };
+    delete reg.id;
+    if (!reg.creada) reg.creada = Date.now();
+    await guardarHipoteca(reg);
+    n++;
+  }
+  return n;
+}

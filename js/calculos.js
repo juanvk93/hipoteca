@@ -162,15 +162,32 @@ export function taeAtin(tae) {
 
 /**
  * Normaliza la configuración y resuelve el tipo aplicado y los plazos en meses
- * para cada tipo de hipoteca.
+ * para cada tipo de hipoteca. Devuelve una lista de tramos consecutivos.
+ *
+ * Tramo inicial promocional ("tipo de entrada"): en fija y variable se puede
+ * definir un tramo inicial de `promoMeses` meses a un TIN distinto (`promoTin`).
+ * En la fija es un TIN reducido de entrada; en la variable es el habitual
+ * "primer periodo a tipo fijo" antes de pasar a Euríbor + diferencial.
  */
 function resolverTramos(cfg) {
   const tramos = [];
+  const promoMeses = cfg.promoActiva ? Math.max(0, Math.round(cfg.promoMeses || 0)) : 0;
+  const promoTin = cfg.promoTin || 0;
+
+  const conPromo = (totalMeses, tramoResto) => {
+    // El tramo promocional solo se aplica si cabe dentro del plazo total.
+    if (promoMeses > 0 && promoMeses < totalMeses) {
+      tramos.push({ nombre: 'inicial', tinAnual: promoTin, meses: promoMeses });
+      tramos.push({ ...tramoResto, meses: totalMeses - promoMeses });
+    } else {
+      tramos.push({ ...tramoResto, meses: totalMeses });
+    }
+  };
+
   if (cfg.tipo === 'fija') {
-    tramos.push({ nombre: 'fijo', tinAnual: cfg.tinFija, meses: Math.round(cfg.anosFija * 12) });
+    conPromo(Math.round(cfg.anosFija * 12), { nombre: 'fijo', tinAnual: cfg.tinFija });
   } else if (cfg.tipo === 'variable') {
-    const tin = cfg.diferencialVariable + cfg.euribor;
-    tramos.push({ nombre: 'variable', tinAnual: tin, meses: Math.round(cfg.anosVariable * 12) });
+    conPromo(Math.round(cfg.anosVariable * 12), { nombre: 'variable', tinAnual: cfg.diferencialVariable + cfg.euribor });
   } else if (cfg.tipo === 'mixta') {
     tramos.push({ nombre: 'fijo', tinAnual: cfg.tinMixtaFija, meses: Math.round(cfg.anosMixtaFija * 12) });
     tramos.push({
@@ -278,6 +295,47 @@ export function calcularHipoteca(cfg) {
 }
 
 /**
+ * Compara una hipoteca CON bonificación frente a SIN bonificación.
+ *
+ * La opción bonificada aplica el TIN/diferencial reducido que ya contiene `cfg`
+ * y asume el coste anual de los productos vinculados (cfg.gastosVinculadosAnuales).
+ * La opción sin bonificar incrementa el tipo en `cfg.bonifIncremento` puntos y
+ * elimina el coste de los productos. Se comparan los costes totales para decidir
+ * si compensa contratar la bonificación.
+ *
+ * El tramo inicial promocional (tipo de entrada) no se ve afectado por la
+ * bonificación.
+ *
+ * @param {object} cfg  Configuración con `bonifIncremento` (puntos %).
+ * @returns {{incremento:number, bonificado:object, sinBonificar:object, compensa:boolean, diferencia:number}}
+ */
+export function calcularBonificacion(cfg) {
+  const bonificado = calcularHipoteca(cfg);
+
+  const inc = cfg.bonifIncremento || 0;
+  const cfgSin = { ...cfg, gastosVinculadosAnuales: 0 };
+  if (cfg.tipo === 'fija') {
+    cfgSin.tinFija = (cfg.tinFija || 0) + inc;
+  } else if (cfg.tipo === 'variable') {
+    cfgSin.diferencialVariable = (cfg.diferencialVariable || 0) + inc;
+  } else if (cfg.tipo === 'mixta') {
+    cfgSin.tinMixtaFija = (cfg.tinMixtaFija || 0) + inc;
+    cfgSin.diferencialMixtaVariable = (cfg.diferencialMixtaVariable || 0) + inc;
+  }
+  const sinBonificar = calcularHipoteca(cfgSin);
+
+  // Si la opción sin bonificar cuesta más, compensa bonificar.
+  const difFinal = sinBonificar.importeFinal - bonificado.importeFinal;
+  return {
+    incremento: inc,
+    bonificado,
+    sinBonificar,
+    compensa: difFinal > 0,
+    diferencia: Math.abs(difFinal),
+  };
+}
+
+/**
  * Genera escenarios de Euríbor para hipotecas variables y mixtas.
  * Recalcula la hipoteca aplicando distintos incrementos al Euríbor.
  * @param {object} cfg  Configuración base.
@@ -302,4 +360,125 @@ export function calcularEscenarios(cfg, deltas = [-1, -0.5, 0, 0.5, 1, 2]) {
       importeFinal: res.importeFinal,
     };
   });
+}
+
+/**
+ * Simula amortizaciones anticipadas (aportaciones extra de capital) sobre una
+ * hipoteca y las compara con el escenario base (sin amortizar).
+ *
+ * @param {object} cfg  Configuración de la hipoteca.
+ * @param {object} amort  Opciones de amortización:
+ *   importe: number          Importe de cada aportación extra (€).
+ *   periodicidad: string     'unica' | 'mensual' | 'anual'.
+ *   mes: number              Mes de la aportación (solo 'unica').
+ *   desde: number            Mes desde el que empiezan las aportaciones periódicas.
+ *   modo: string             'cuota' (mantener plazo, bajar cuota) | 'plazo'
+ *                            (mantener cuota, acortar plazo).
+ *   comisionPct: number      Comisión de amortización anticipada (% del importe).
+ * @returns {object} Resultado con cuadro, ahorros y comparación con la base.
+ */
+export function simularAmortizacionAnticipada(cfg, amort) {
+  const base = calcularHipoteca(cfg);
+  const tramos = resolverTramos(cfg);
+  const mesesTotal = tramos.reduce((s, t) => s + t.meses, 0);
+
+  // Tipo anual de cada mes (1-based) y meses donde empieza un tramo.
+  const tipoDeMes = new Array(mesesTotal + 1);
+  const inicios = new Set();
+  let cursor = 1;
+  for (const t of tramos) {
+    inicios.add(cursor);
+    for (let k = 0; k < t.meses; k++) tipoDeMes[cursor + k] = t.tinAnual;
+    cursor += t.meses;
+  }
+
+  const importe = amort.importe || 0;
+  const modo = amort.modo === 'plazo' ? 'plazo' : 'cuota';
+  const period = amort.periodicidad || 'unica';
+  const mesUnica = Math.max(1, Math.round(amort.mes || 12));
+  const desde = Math.max(1, Math.round(amort.desde || 1));
+  const comPct = amort.comisionPct || 0;
+
+  const aplicaExtra = (m) => {
+    if (importe <= 0) return false;
+    if (period === 'unica') return m === mesUnica;
+    if (period === 'mensual') return m >= desde;
+    if (period === 'anual') return m >= desde && (m - desde) % 12 === 0;
+    return false;
+  };
+
+  const filas = [];
+  let pendiente = cfg.capital;
+  let totalIntereses = 0;
+  let totalExtra = 0;
+  let totalComisiones = 0;
+  let cuota = cuotaFrancesa(pendiente, tipoDeMes[1], mesesTotal);
+
+  const MAX = mesesTotal + 2;
+  for (let m = 1; m <= MAX && pendiente > 0.005; m++) {
+    const tin = tipoDeMes[Math.min(m, mesesTotal)];
+    const iMes = tin / 100 / 12;
+
+    // Cambio de tramo: la cuota se recalcula por el nuevo tipo (plazo restante original).
+    if (inicios.has(m) && m > 1) {
+      const restantes = mesesTotal - (m - 1);
+      if (restantes > 0) cuota = cuotaFrancesa(pendiente, tin, restantes);
+    }
+
+    let interes = pendiente * iMes;
+    let amortizado = cuota - interes;
+    if (amortizado > pendiente) amortizado = pendiente; // última cuota
+    pendiente -= amortizado;
+    totalIntereses += interes;
+
+    let extra = 0;
+    let comision = 0;
+    if (aplicaExtra(m) && pendiente > 0) {
+      extra = Math.min(importe, pendiente);
+      comision = (extra * comPct) / 100;
+      pendiente -= extra;
+      totalExtra += extra;
+      totalComisiones += comision;
+      // Modo cuota: recalcular la cuota para el plazo restante original.
+      if (modo === 'cuota') {
+        const restantes = mesesTotal - m;
+        if (restantes > 0 && pendiente > 0) cuota = cuotaFrancesa(pendiente, tin, restantes);
+      }
+    }
+
+    filas.push({
+      mes: m,
+      cuota: interes + amortizado,
+      interes,
+      // En el cuadro, el capital amortizado del mes incluye la aportación extra.
+      amortizado: amortizado + extra,
+      amortizacionOrdinaria: amortizado,
+      extra,
+      comision,
+      pendiente,
+    });
+  }
+
+  const mesesReales = filas.length;
+  const comisionApertura = (cfg.capital * (cfg.comisionAperturaPct || 0)) / 100;
+  const gastosVinculados = (cfg.gastosVinculadosAnuales || 0) * (mesesReales / 12);
+  const importeTotal = cfg.capital + totalIntereses;
+  const importeFinal = importeTotal + comisionApertura + gastosVinculados + totalComisiones;
+
+  return {
+    base,
+    modo,
+    filas,
+    resumenAnual: agruparPorAnos(filas),
+    mesesReales,
+    mesesAhorrados: base.mesesTotal - mesesReales,
+    totalIntereses,
+    totalExtra,
+    totalComisiones,
+    ahorroIntereses: base.totalIntereses - totalIntereses,
+    importeTotal,
+    importeFinal,
+    cuotaInicial: filas[0]?.cuota || 0,
+    cuotaFinal: filas[mesesReales - 1]?.cuota || 0,
+  };
 }

@@ -18,7 +18,10 @@ import { VERSION, CAMBIOS } from './changelog.js';
 import { graficoComparador, graficoHistoricoEuribor } from './graficos.js';
 
 // Colores de acento disponibles.
-const ACENTOS = ['#3d8bff', '#22c55e', '#a855f7', '#ef4444', '#f59e0b', '#14b8a6', '#ec4899', '#6366f1'];
+const ACENTOS = [
+  '#3d8bff', '#22c55e', '#a855f7', '#ef4444', '#f59e0b', '#14b8a6', '#ec4899', '#6366f1',
+  '#0ea5e9', '#f97316', '#06b6d4', '#d946ef', '#84cc16', '#64748b',
+];
 
 // ---------------------------------------------------------------------------
 //  Estado de la aplicación
@@ -263,9 +266,21 @@ function validarConfig(cfg) {
   return null;
 }
 
-function construirResumen(res, imp) {
+function construirResumen(res, imp, costeProductos) {
   const variable = res.tramos.find((t) => t.nombre === 'variable');
   const ultimo = res.tramos[res.tramos.length - 1];
+
+  // Si hay un TAE del banco con coste de productos estimado, se tiene en cuenta
+  // el mayor entre los gastos vinculados declarados y los estimados (sin duplicar
+  // si el usuario ya los aplicó a «Gastos vinculados»).
+  const gastosDeclarados = res.gastosVinculados || 0;
+  const costeProdTotal = costeProductos && costeProductos.hayProductos ? costeProductos.costeTotal : 0;
+  const gastosVinculados = Math.max(gastosDeclarados, costeProdTotal);
+  const productosDesdeTae = costeProdTotal > gastosDeclarados + 0.5;
+  const importeFinal = res.importeTotal + res.comisionApertura + gastosVinculados;
+  // La TAE efectiva refleja ese coste: si manda el TAE del banco, se usa su valor.
+  const tae = productosDesdeTae ? costeProductos.taeObjetivo : res.tae;
+
   return {
     tipo: res.tipo,
     capital: res.capital,
@@ -276,9 +291,11 @@ function construirResumen(res, imp) {
     cuotaVariable: variable ? variable.cuota : res.cuotaPrimera,
     totalIntereses: res.totalIntereses,
     importeTotal: res.importeTotal,
-    importeFinal: res.importeFinal,
+    importeFinal,
     comisionApertura: res.comisionApertura,
-    tae: res.tae,
+    gastosVinculados,
+    productosDesdeTae,
+    tae,
     ahorroNecesario: imp ? imp.ahorroNecesario : null,
     impuestosTotales: imp ? imp.impuestosTotales : null,
   };
@@ -341,6 +358,7 @@ function nuevoCalculo() {
   $$('#amortPeriodicidad .seg').forEach((s) => s.classList.toggle('activa', s.dataset.period === 'unica'));
   $$('#amortModo .seg').forEach((s) => s.classList.toggle('activa', s.dataset.modo === 'plazo'));
   actualizarLabelMes('unica');
+  aplicarDefaults();
   prellenarEuriborEnFormulario();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -450,7 +468,7 @@ function pedirTexto(titulo, valorInicial = '') {
 
 async function abrirModalGuardar() {
   if (!estado.ultimoResultado) return;
-  const { cfg, datosVivienda, res, imp } = estado.ultimoResultado;
+  const { cfg, datosVivienda, res, imp, costeProductos } = estado.ultimoResultado;
   const nombreSugerido = `Hipoteca ${nombreTipo(cfg.tipo).toLowerCase()} ${num(res.anosTotal)} años`;
   const nombre = await pedirTexto(estado.editandoId ? 'Actualizar hipoteca' : 'Guardar hipoteca', nombreSugerido);
   if (nombre == null) return;
@@ -460,7 +478,7 @@ async function abrirModalGuardar() {
     config: cfg,
     datosVivienda,
     amort: estado.ultimoResultado.amort || null,
-    resumen: construirResumen(res, imp),
+    resumen: construirResumen(res, imp, costeProductos),
     creada: Date.now(),
   };
 
@@ -642,47 +660,109 @@ async function pintarComparador() {
 
 function tablaComparativa(hipos) {
   const r = hipos.map((h) => h.resumen || {});
+  const n = hipos.length;
 
-  // Determina el mejor (mínimo) por fila para resaltar.
+  // Índice del valor mínimo finito de una lista.
   const minIdx = (vals) => {
     let mi = -1, mv = Infinity;
     vals.forEach((v, i) => { if (Number.isFinite(v) && v < mv) { mv = v; mi = i; } });
     return mi;
   };
 
-  const filaTexto = (etq, fmt, getter, resaltarMin = false) => {
+  // Ganador global: menor coste total (importe final).
+  const costes = r.map((x) => (Number.isFinite(x.importeFinal) ? x.importeFinal : Infinity));
+  const idxGanador = n > 1 ? minIdx(costes) : -1;
+
+  // Veredicto: cuánto ahorra la más barata frente a la siguiente.
+  let veredicto = '';
+  if (n >= 2 && idxGanador >= 0) {
+    const ordenados = [...costes].filter((c) => Number.isFinite(c)).sort((a, b) => a - b);
+    const ahorro = ordenados.length >= 2 ? ordenados[1] - ordenados[0] : 0;
+    veredicto = `
+      <div class="card veredicto-comp">
+        <div class="vc-tit">Opción más barata por coste total</div>
+        <div class="vc-nombre">${esc(hipos[idxGanador].nombre)}</div>
+        <div class="vc-ahorro">${ahorro > 0.5 ? `${euro0(ahorro)} menos que la siguiente más barata` : 'prácticamente empatada con la siguiente'}</div>
+      </div>`;
+  }
+
+  const cls = (i, esMejor) => [esMejor ? 'mejor' : '', i === idxGanador ? 'col-ganador' : ''].filter(Boolean).join(' ');
+
+  // Fila genérica. Opciones: resaltar mínimo y/o mostrar Δ respecto al mínimo.
+  const fila = (etq, fmt, getter, { resaltar = false, delta = false } = {}) => {
     const vals = r.map(getter);
-    const mejor = resaltarMin ? minIdx(vals) : -1;
-    const celdas = vals.map((v, i) => `<td class="${i === mejor ? 'mejor' : ''}">${v == null ? '—' : fmt(v)}</td>`).join('');
+    const mejor = resaltar ? minIdx(vals) : -1;
+    const minVal = mejor >= 0 ? vals[mejor] : null;
+    const celdas = vals.map((v, i) => {
+      if (v == null || !Number.isFinite(v)) return `<td class="${cls(i, false)}">—</td>`;
+      const esMejor = i === mejor;
+      const d = delta && minVal != null && !esMejor && v - minVal > 0.5
+        ? `<span class="cmp-delta">+${euro0(v - minVal)}</span>` : '';
+      return `<td class="${cls(i, esMejor)}">${fmt(v)}${d}</td>`;
+    }).join('');
     return `<tr><td>${etq}</td>${celdas}</tr>`;
   };
 
-  const cabecera = hipos.map((h) => `<th>${esc(h.nombre)}</th>`).join('');
+  // Fila de cuota: muestra rango si la hipoteca tiene varios tramos; resalta por
+  // la cuota inicial.
+  const filaCuota = () => {
+    const vals = r.map((x) => x.cuotaPrimera);
+    const mejor = minIdx(vals);
+    const celdas = r.map((x, i) => {
+      const txt = (x.numTramos ?? (x.tipo === 'mixta' ? 2 : 1)) > 1
+        ? `${euro0(x.cuotaPrimera)}→${euro0(x.cuotaSegunda ?? x.cuotaVariable ?? x.cuotaPrimera)}`
+        : euro0(x.cuotaPrimera);
+      return `<td class="${cls(i, i === mejor)}">${txt}</td>`;
+    }).join('');
+    return `<tr><td>Cuota</td>${celdas}</tr>`;
+  };
 
-  const datosGrafico = hipos.map((h) => ({ nombre: h.nombre, capital: (h.resumen || {}).capital || 0, totalIntereses: (h.resumen || {}).totalIntereses || 0 }));
+  // Fila TAE: marca con * la que incluye productos estimados desde el TAE del banco.
+  const filaTae = () => {
+    const vals = r.map((x) => x.tae);
+    const mejor = minIdx(vals);
+    const celdas = r.map((x, i) => `<td class="${cls(i, i === mejor)}">${pct(x.tae)}${x.productosDesdeTae ? '*' : ''}</td>`).join('');
+    return `<tr><td>TAE</td>${celdas}</tr>`;
+  };
+
+  const hayComision = r.some((x) => (x.comisionApertura || 0) > 0);
+  const hayVinculados = r.some((x) => (x.gastosVinculados || 0) > 0);
+  const hayAhorro = r.some((x) => x.ahorroNecesario != null);
+  const hayTae = r.some((x) => x.productosDesdeTae);
+
+  const cabecera = hipos.map((h, i) => `<th class="${i === idxGanador ? 'col-ganador' : ''}">${esc(h.nombre)}</th>`).join('');
+
+  const datosGrafico = hipos.map((h) => {
+    const x = h.resumen || {};
+    const extras = (x.comisionApertura || 0) + (x.gastosVinculados || 0);
+    return { nombre: h.nombre, capital: x.capital || 0, totalIntereses: x.totalIntereses || 0, extras, costeTotal: x.importeFinal || 0 };
+  });
 
   return `
+    ${veredicto}
     <div class="card card-grafico" style="margin-bottom:14px">
-      <h3>Coste total (capital + intereses)</h3>
+      <h3>Coste total de cada hipoteca</h3>
       ${graficoComparador(datosGrafico)}
     </div>
     <div class="tabla-scroll">
       <table class="tabla tabla-comparar">
         <thead><tr><th>Concepto</th>${cabecera}</tr></thead>
         <tbody>
-          <tr class="fila-tipo"><td>Tipo</td>${r.map((x) => `<td>${nombreTipo(x.tipo)}</td>`).join('')}</tr>
-          ${filaTexto('Capital', euro0, (x) => x.capital)}
-          ${filaTexto('Plazo', (v) => `${num(v)} años`, (x) => x.anosTotal)}
-          ${filaTexto('Cuota inicial', euro0, (x) => x.cuotaPrimera, true)}
-          ${filaTexto('Intereses', euro0, (x) => x.totalIntereses, true)}
-          ${filaTexto('Total a pagar', euro0, (x) => x.importeTotal, true)}
-          ${filaTexto('Coste total', euro0, (x) => x.importeFinal, true)}
-          ${filaTexto('TAE', (v) => pct(v), (x) => x.tae, true)}
-          ${r.some((x) => x.ahorroNecesario != null) ? filaTexto('Ahorro necesario', euro0, (x) => x.ahorroNecesario, true) : ''}
+          <tr class="fila-tipo"><td>Tipo</td>${r.map((x, i) => `<td class="${i === idxGanador ? 'col-ganador' : ''}">${nombreTipo(x.tipo)}</td>`).join('')}</tr>
+          ${fila('Capital', euro0, (x) => x.capital)}
+          ${fila('Plazo', (v) => `${num(v)} años`, (x) => x.anosTotal)}
+          ${filaCuota()}
+          ${hayComision ? fila('Comisión apertura', euro0, (x) => x.comisionApertura || 0, { resaltar: true }) : ''}
+          ${hayVinculados ? fila('Gastos vinculados', euro0, (x) => x.gastosVinculados || 0, { resaltar: true }) : ''}
+          ${fila('Intereses', euro0, (x) => x.totalIntereses, { resaltar: true, delta: true })}
+          ${fila('Coste total', euro0, (x) => x.importeFinal, { resaltar: true, delta: true })}
+          ${filaTae()}
+          ${hayAhorro ? fila('Ahorro necesario', euro0, (x) => x.ahorroNecesario, { resaltar: true, delta: true }) : ''}
         </tbody>
       </table>
     </div>
-    <p class="muted" style="margin-top:12px">En verde, el valor más bajo de cada fila.</p>`;
+    <p class="muted" style="margin-top:12px">En verde el mejor valor de cada fila; la columna resaltada es la de menor coste total. El <strong>+importe</strong> es lo que cuesta de más frente a la mejor.</p>
+    ${hayTae ? '<p class="muted" style="margin-top:6px">* El coste total y la TAE incluyen los gastos vinculados estimados a partir del TAE del banco.</p>' : ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -770,6 +850,36 @@ function bindAjustes() {
     if (estado.ajustes.usarEuriborManual && v != null) fijarEuribor(v, { fuente: 'manual', periodo: '' });
   });
 
+  // Valores por defecto
+  const setDefUI = () => {
+    const d = estado.ajustes.defaults || {};
+    $('#defCapital').value = d.capital != null ? String(d.capital) : '';
+    $('#defValorInmueble').value = d.valorInmueble != null ? String(d.valorInmueble) : '';
+    $('#defCcaa').value = String(d.ccaaId ?? CCAA_MADRID);
+    $('#defObraNueva').checked = !!d.obraNueva;
+    $('#defViviendaHabitual').checked = !!d.viviendaHabitual;
+  };
+  setDefUI();
+  const guardarDefaults = async () => {
+    estado.ajustes.defaults = {
+      capital: leerNum('defCapital'),
+      valorInmueble: leerNum('defValorInmueble'),
+      ccaaId: parseInt($('#defCcaa').value, 10) || CCAA_MADRID,
+      obraNueva: $('#defObraNueva').checked,
+      viviendaHabitual: $('#defViviendaHabitual').checked,
+    };
+    await persistirAjustes();
+  };
+  ['defCapital', 'defValorInmueble', 'defCcaa', 'defObraNueva', 'defViviendaHabitual'].forEach((id) => {
+    $('#' + id).addEventListener('change', guardarDefaults);
+  });
+  $('#btnLimpiarDefaults').addEventListener('click', async () => {
+    estado.ajustes.defaults = { capital: null, valorInmueble: null, ccaaId: CCAA_MADRID, obraNueva: false, viviendaHabitual: false };
+    await persistirAjustes();
+    setDefUI();
+    toast('Valores por defecto borrados');
+  });
+
   // Versión y novedades
   const ver = $('#appVersion');
   if (ver) ver.textContent = `v${VERSION}`;
@@ -828,8 +938,25 @@ function bindAjustes() {
 //  Inicialización
 // ---------------------------------------------------------------------------
 function poblarCCAA() {
-  const sel = $('#ccaa');
-  sel.innerHTML = CCAA.map((c) => `<option value="${c.id}" ${c.id === CCAA_MADRID ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
+  const opciones = CCAA.map((c) => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+  ['#ccaa', '#defCcaa'].forEach((sel) => {
+    const el = $(sel);
+    if (el) { el.innerHTML = opciones; el.value = String(CCAA_MADRID); }
+  });
+}
+
+// Rellena el formulario de cálculo con los valores por defecto de ajustes.
+function aplicarDefaults() {
+  const d = estado.ajustes.defaults || {};
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = (v ?? '') === '' ? '' : String(v); };
+  if (d.capital != null) setVal('capital', d.capital);
+  if (d.valorInmueble != null) {
+    setVal('valorInmueble', d.valorInmueble);
+    $('#detallesVivienda').open = true; // visible para que se note que aplica
+  }
+  if ($('#ccaa')) $('#ccaa').value = String(d.ccaaId ?? CCAA_MADRID);
+  if ($('#obraNueva')) $('#obraNueva').checked = !!d.obraNueva;
+  if ($('#viviendaHabitual')) $('#viviendaHabitual').checked = !!d.viviendaHabitual;
 }
 
 function bindEventos() {
@@ -872,6 +999,7 @@ async function init() {
   bindEventos();
   bindAjustes();
   cambiarTipo('fija');
+  aplicarDefaults();
 
   await inicializarEuribor();
 

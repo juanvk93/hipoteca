@@ -98,45 +98,54 @@ export function graficoHistoricoEuribor(puntos) {
 }
 
 /**
- * Gráfico de barras apiladas (capital + intereses) para comparar hipotecas.
- * @param {Array} hipos  [{ nombre, capital, totalIntereses }]
+ * Gráfico de barras apiladas (capital + intereses + extras) para comparar el
+ * coste total de varias hipotecas. La de menor coste total se resalta en verde.
+ * @param {Array} hipos  [{ nombre, capital, totalIntereses, extras, costeTotal }]
  * @returns {string} SVG.
  */
 export function graficoComparador(hipos) {
   if (!hipos.length) return '';
-  const W = 320, H = 190;
-  const mInf = 30, mSup = 16, mLat = 10;
+  const W = 320, H = 200;
+  const mInf = 40, mSup = 16, mLat = 10;
   const innerH = H - mInf - mSup;
-  const maxTotal = Math.max(...hipos.map((h) => h.capital + h.totalIntereses), 1);
+  const costes = hipos.map((h) => h.costeTotal);
+  const maxTotal = Math.max(...costes, 1);
+  const idxGanador = costes.indexOf(Math.min(...costes));
   const n = hipos.length;
   const slot = (W - 2 * mLat) / n;
-  const bw = Math.min(56, slot * 0.6);
+  const bw = Math.min(56, slot * 0.62);
 
   const barras = hipos.map((h, i) => {
     const cx = mLat + slot * i + slot / 2;
     const x = cx - bw / 2;
-    const total = h.capital + h.totalIntereses;
+    const ganador = i === idxGanador && n > 1;
+    const colorInt = ganador ? 'var(--positivo)' : 'var(--acento)';
     const hCap = (h.capital / maxTotal) * innerH;
     const hInt = (h.totalIntereses / maxTotal) * innerH;
+    const hExt = ((h.extras || 0) / maxTotal) * innerH;
+    const yExt = mSup + (innerH - hCap - hInt - hExt);
     const yInt = mSup + (innerH - hCap - hInt);
     const yCap = mSup + (innerH - hCap);
-    const nombre = h.nombre.length > 10 ? h.nombre.slice(0, 9) + '…' : h.nombre;
+    const nombre = h.nombre.length > 11 ? h.nombre.slice(0, 10) + '…' : h.nombre;
     return `
-      <rect x="${x.toFixed(1)}" y="${yInt.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, hInt).toFixed(1)}" rx="3" fill="var(--acento)"/>
+      ${hExt > 0.5 ? `<rect x="${x.toFixed(1)}" y="${yExt.toFixed(1)}" width="${bw.toFixed(1)}" height="${hExt.toFixed(1)}" rx="3" fill="var(--aviso)"/>` : ''}
+      <rect x="${x.toFixed(1)}" y="${yInt.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, hInt).toFixed(1)}" rx="3" fill="${colorInt}"/>
       <rect x="${x.toFixed(1)}" y="${yCap.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0, hCap).toFixed(1)}" rx="3" fill="var(--surface-2)" stroke="var(--borde)" stroke-width="1"/>
-      <text x="${cx.toFixed(1)}" y="${(yInt - 4).toFixed(1)}" fill="var(--texto-2)" font-size="9.5" text-anchor="middle">${fmtK(total)}</text>
-      <text x="${cx.toFixed(1)}" y="${H - 14}" fill="var(--texto-2)" font-size="10" text-anchor="middle">${esc(nombre)}</text>
+      <text x="${cx.toFixed(1)}" y="${(yExt - 4).toFixed(1)}" fill="${ganador ? 'var(--positivo)' : 'var(--texto-2)'}" font-size="9.5" font-weight="${ganador ? '700' : '400'}" text-anchor="middle">${fmtK(h.costeTotal)}</text>
+      <text x="${cx.toFixed(1)}" y="${H - 24}" fill="${ganador ? 'var(--positivo)' : 'var(--texto-2)'}" font-size="10" font-weight="${ganador ? '700' : '400'}" text-anchor="middle">${esc(nombre)}</text>
     `;
   }).join('');
 
   return `
-    <svg class="grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="Comparación de coste">
+    <svg class="grafico" viewBox="0 0 ${W} ${H}" role="img" aria-label="Comparación de coste total">
       ${barras}
-      <g font-size="10">
-        <rect x="${mLat}" y="${H - 9}" width="9" height="9" rx="2" fill="var(--acento)"/>
-        <text x="${mLat + 13}" y="${H - 1}" fill="var(--texto-3)">Intereses</text>
-        <rect x="${mLat + 75}" y="${H - 9}" width="9" height="9" rx="2" fill="var(--surface-2)" stroke="var(--borde)"/>
-        <text x="${mLat + 88}" y="${H - 1}" fill="var(--texto-3)">Capital</text>
+      <g font-size="9.5">
+        <rect x="${mLat}" y="${H - 11}" width="9" height="9" rx="2" fill="var(--surface-2)" stroke="var(--borde)"/>
+        <text x="${mLat + 13}" y="${H - 3}" fill="var(--texto-3)">Capital</text>
+        <rect x="${mLat + 62}" y="${H - 11}" width="9" height="9" rx="2" fill="var(--acento)"/>
+        <text x="${mLat + 75}" y="${H - 3}" fill="var(--texto-3)">Intereses</text>
+        <rect x="${mLat + 135}" y="${H - 11}" width="9" height="9" rx="2" fill="var(--aviso)"/>
+        <text x="${mLat + 148}" y="${H - 3}" fill="var(--texto-3)">Comis.+prod.</text>
       </g>
     </svg>`;
 }

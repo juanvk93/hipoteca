@@ -8,7 +8,7 @@
 //     obsoletos.
 // ============================================================================
 
-const CACHE = 'hipoteca-v1.2.2';
+const CACHE = 'hipoteca-v1.3.0';
 
 const APP_SHELL = [
   './',

@@ -327,6 +327,15 @@ table.tabla tbody tr.destacado td { background: color-mix(in srgb, var(--acento)
 .tabla-comparar td { font-weight: 600; }
 .tabla-comparar .mejor { color: var(--positivo); }
 .tabla-comparar tr.fila-tipo td { font-weight: 700; }
+.tabla-comparar .col-ganador { background: color-mix(in srgb, var(--acento) 12%, transparent); }
+.tabla-comparar th.col-ganador { background: color-mix(in srgb, var(--acento) 20%, var(--bg)); }
+.cmp-delta { display: block; font-size: .72rem; font-weight: 600; color: var(--negativo); margin-top: 2px; }
+
+/* Veredicto del comparador */
+.veredicto-comp { text-align: center; margin-bottom: 14px; border-color: color-mix(in srgb, var(--positivo) 35%, var(--borde)); background: linear-gradient(160deg, color-mix(in srgb, var(--positivo) 14%, var(--surface)), var(--surface)); }
+.veredicto-comp .vc-tit { font-size: .76rem; text-transform: uppercase; letter-spacing: .05em; color: var(--texto-3); }
+.veredicto-comp .vc-nombre { font-size: 1.4rem; font-weight: 800; margin: 4px 0 2px; }
+.veredicto-comp .vc-ahorro { font-size: .9rem; color: var(--positivo); font-weight: 600; }
 
 /* ---------- Ajustes ---------- */
 .ajustes { display: flex; flex-direction: column; gap: 16px; }

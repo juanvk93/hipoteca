@@ -43,3 +43,23 @@ seccion('TAE: deducción del coste de productos');
   }
   console.log(`     → TAE base ${res.tae.toFixed(2)}% · 600€/año ⇒ TAE ${taeConProductos(res, 600).toFixed(2)}%`);
 }
+
+seccion('TAE: coherencia card ↔ cálculo (aplicar el coste sube la TAE)');
+{
+  // Reproduce el caso del usuario: TIN 3,85 %, TAE base ~3,92 %, TAE banco 4,317 %.
+  const cfgU = { tipo: 'fija', capital: 200000, tinFija: 3.85, anosFija: 30, comisionAperturaPct: 0, gastosVinculadosAnuales: 0 };
+  const base = calcularHipoteca(cfgU);
+  const taeBanco = 4.317;
+  const ded = deducirCosteProductos(cfgU, taeBanco);
+  ok(ded.costeAnual > 0, `coste deducido > 0 (${ded.costeAnual.toFixed(0)} €/año)`);
+
+  // Al aplicar ese coste a gastos vinculados, la TAE calculada debe subir al objetivo.
+  const resConProductos = calcularHipoteca({ ...cfgU, gastosVinculadosAnuales: ded.costeAnual });
+  aprox(resConProductos.tae, taeBanco, 0.02, 'aplicar el coste deducido sube la TAE ≈ al TAE del banco');
+  ok(resConProductos.tae > base.tae + 0.2, `la TAE sube respecto a la base (${base.tae.toFixed(2)} → ${resConProductos.tae.toFixed(2)})`);
+
+  // El redondeo a euros del botón mantiene la TAE muy cerca del objetivo.
+  const resRedondeado = calcularHipoteca({ ...cfgU, gastosVinculadosAnuales: Math.round(ded.costeAnual) });
+  aprox(resRedondeado.tae, taeBanco, 0.03, 'con coste redondeado, TAE ≈ objetivo');
+  console.log(`     → TIN 3,85% · TAE base ${base.tae.toFixed(2)}% · banco ${taeBanco}% ⇒ coste ${ded.costeAnual.toFixed(0)}€/año ⇒ TAE recalc ${resConProductos.tae.toFixed(2)}%`);
+}

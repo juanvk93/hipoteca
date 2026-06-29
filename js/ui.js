@@ -23,6 +23,16 @@ export function esc(s) {
 const NOMBRE_TIPO = { fija: 'Fija', variable: 'Variable', mixta: 'Mixta' };
 export const nombreTipo = (t) => NOMBRE_TIPO[t] || t;
 
+/** Describe qué costes incluye la TAE calculada. */
+function taeIncluye(res) {
+  const c = res.comisionApertura > 0;
+  const g = res.gastosVinculados > 0;
+  if (c && g) return 'incl. comisión y productos';
+  if (g) return 'incluye productos';
+  if (c) return 'incluye comisión';
+  return 'sin comisiones';
+}
+
 /**
  * Título y detalle de un tramo para mostrarlo en los resultados.
  * @param {string} tipo  Tipo de hipoteca ('fija'|'variable'|'mixta').
@@ -109,7 +119,7 @@ export function renderResultados({ res, imp, escenarios, bonificacion, amortizac
       <div class="metrica">
         <span class="m-etq">TAE estimada</span>
         <span class="m-val">${pct(res.tae)}</span>
-        <span class="m-extra">${res.comisionApertura > 0 ? 'incluye comisión' : 'sin comisiones'}</span>
+        <span class="m-extra">${taeIncluye(res)}</span>
       </div>
       <div class="metrica">
         <span class="m-etq">Coste total</span>

@@ -272,7 +272,11 @@ export function calcularHipoteca(cfg) {
 
   const importeTotal = totalPagado; // capital + intereses
   const importeFinal = importeTotal + comisionApertura + gastosVinculados;
-  const tae = calcularTAE(capital, comisionApertura, cuotasFlujo);
+  // La TAE incluye comisión de apertura y la prima mensual de los productos
+  // vinculados (la TAE oficial los incorpora como pagos del préstamo).
+  const primaMensual = (cfg.gastosVinculadosAnuales || 0) / 12;
+  const flujoTAE = primaMensual > 0 ? cuotasFlujo.map((c) => c + primaMensual) : cuotasFlujo;
+  const tae = calcularTAE(capital, comisionApertura, flujoTAE);
 
   return {
     tipo: cfg.tipo,
@@ -353,7 +357,9 @@ export function calcularBonificacion(cfg) {
  * @returns {object} { taeObjetivo, taeBase, costeAnual, costeMensual, costeTotal, hayProductos }
  */
 export function deducirCosteProductos(cfg, taeObjetivo) {
-  const res = calcularHipoteca(cfg);
+  // Se compara siempre contra la TAE "limpia" (TIN + comisión, sin productos),
+  // para que el coste deducido no dependa de lo que ya haya en gastos vinculados.
+  const res = calcularHipoteca({ ...cfg, gastosVinculadosAnuales: 0 });
   const cuotas = res.filasAmortizacion.map((f) => f.cuota);
   const comision = res.comisionApertura;
   const iObj = Math.pow(1 + taeObjetivo / 100, 1 / 12) - 1;

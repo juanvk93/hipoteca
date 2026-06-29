@@ -6,9 +6,29 @@
 //  actualización de los recursos en los dispositivos.
 // ============================================================================
 
-export const VERSION = '1.2.2';
+export const VERSION = '1.3.0';
 
 export const CAMBIOS = [
+  {
+    version: '1.3.0',
+    fecha: '2026-06-30',
+    titulo: 'Comparador mejorado y valores por defecto',
+    cambios: [
+      'Comparador: destaca la hipoteca más barata por coste total, resalta su columna y muestra cuánto cuesta de más cada opción frente a la mejor.',
+      'Comparador: nuevas filas (cuota con rango por tramos, comisión, gastos vinculados) y gráfico de coste total que incluye comisión y productos.',
+      'Comparador: tiene en cuenta el TAE del banco; cuando se ha indicado, el coste total y la TAE reflejan los gastos vinculados estimados a partir de él.',
+      'Ajustes: valores por defecto (cantidad a solicitar, precio de la vivienda, comunidad autónoma, obra nueva y vivienda habitual) que se rellenan al iniciar y al pulsar «Nuevo».',
+      'Ajustes: 6 colores de acento nuevos y mejor separación en la sección del Euríbor.',
+    ],
+  },
+  {
+    version: '1.2.3',
+    fecha: '2026-06-30',
+    titulo: 'La TAE ahora incluye los productos vinculados',
+    cambios: [
+      'Corregido: la TAE calculada no tenía en cuenta los gastos vinculados. Ahora los incluye, así que al añadir el coste de los productos la TAE sube y se acerca a la que anuncia el banco.',
+    ],
+  },
   {
     version: '1.2.2',
     fecha: '2026-06-29',

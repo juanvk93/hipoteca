@@ -16,6 +16,14 @@ export const AJUSTES_DEFAULT = {
   acento: '#3d8bff', // color de acento configurable
   usarEuriborManual: false,
   euriborManual: null,
+  // Valores con los que se prerrellena el formulario al iniciar o pulsar «Nuevo».
+  defaults: {
+    capital: null,
+    valorInmueble: null,
+    ccaaId: 13, // Madrid
+    obraNueva: false,
+    viviendaHabitual: false,
+  },
 };
 
 let _dbPromise = null;

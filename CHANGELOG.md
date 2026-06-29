@@ -3,6 +3,38 @@
 Todas las versiones notables de la **Calculadora de Hipoteca** se documentan aquí.
 El formato sigue, de forma aproximada, [Keep a Changelog](https://keepachangelog.com/es-ES/).
 
+## [1.3.0] — 2026-06-30
+
+### Añadido
+
+- **Comparador mejorado**:
+  - Tarjeta de **veredicto** con la opción más barata por coste total y cuánto ahorra frente a
+    la siguiente; se **resalta la columna** de esa hipoteca.
+  - **Diferencias (+importe)** en intereses, coste total y ahorro necesario respecto a la mejor.
+  - Nuevas filas: **cuota** (con rango por tramos), **comisión de apertura** y **gastos
+    vinculados**.
+  - Gráfico de **coste total** (capital + intereses + comisión y productos) con el ganador
+    destacado.
+  - Tiene en cuenta el **TAE del banco**: cuando se ha indicado, el coste total y la TAE de esa
+    hipoteca reflejan los gastos vinculados estimados a partir de él (se usa el mayor entre los
+    declarados y los estimados, sin duplicar).
+- **Valores por defecto** en Ajustes (cantidad a solicitar, precio de la vivienda, comunidad
+  autónoma, obra nueva y vivienda habitual) que se rellenan al iniciar la app y al pulsar «Nuevo».
+
+### Cambiado
+
+- **6 colores de acento nuevos** en Ajustes (14 en total).
+- Mejor separación visual en la sección del Euríbor de Ajustes.
+
+## [1.2.3] — 2026-06-30
+
+### Corregido
+
+- La **TAE** calculada no incluía los **gastos vinculados** (solo la comisión de apertura), por
+  lo que al añadir el coste de los productos la TAE no variaba. Ahora la TAE incorpora la prima
+  mensual de los productos, de modo que coincide con la del banco al introducir su coste. La
+  deducción del coste desde el TAE se compara siempre contra la TAE limpia (TIN + comisión).
+
 ## [1.2.2] — 2026-06-29
 
 ### Añadido

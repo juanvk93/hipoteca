@@ -2,7 +2,7 @@
 //  app.js · Controlador principal de la PWA (navegación, eventos, orquestación)
 // ============================================================================
 
-import { calcularHipoteca, calcularEscenarios, calcularBonificacion, simularAmortizacionAnticipada } from './calculos.js';
+import { calcularHipoteca, calcularEscenarios, calcularBonificacion, simularAmortizacionAnticipada, deducirCosteProductos } from './calculos.js';
 import { calcularImpuestos, CCAA, CCAA_MADRID } from './impuestos.js';
 import { fetchEuriborBCE, fetchHistoricoEuribor, resolverEuribor, formatearPeriodo, leerEuriborCache } from './euribor.js';
 import {
@@ -125,7 +125,7 @@ function prellenarEuriborEnFormulario() {
   // Solo rellena si el usuario no ha escrito ya un valor.
   ['euriborVariable', 'euriborMixta'].forEach((id) => {
     const el = document.getElementById(id);
-    if (el && el.value === '') el.value = String(estado.euribor).replace('.', ',');
+    if (el && el.value === '') el.value = String(estado.euribor);
   });
 }
 
@@ -202,6 +202,12 @@ function leerFormulario() {
   if ($('#bonifActiva').checked) {
     cfg.bonifActiva = true;
     cfg.bonifIncremento = leerNum('bonifIncremento') || 0;
+  }
+
+  // TAE del banco → deducir coste de productos.
+  if ($('#taeActiva').checked) {
+    cfg.taeActiva = true;
+    cfg.taeObjetivo = leerNum('taeObjetivo') || 0;
   }
 
   // Datos de vivienda (opcionales).
@@ -298,16 +304,28 @@ function calcularYMostrar() {
   }
   const bonificacion = cfg.bonifActiva ? calcularBonificacion(cfg) : null;
   const amortizacion = amort && amort.importe > 0 ? simularAmortizacionAnticipada(cfg, amort) : null;
+  const costeProductos = cfg.taeActiva && cfg.taeObjetivo > 0 ? deducirCosteProductos(cfg, cfg.taeObjetivo) : null;
 
-  estado.ultimoResultado = { cfg, datosVivienda, amort, res, imp, escenarios, bonificacion, amortizacion };
+  estado.ultimoResultado = { cfg, datosVivienda, amort, res, imp, escenarios, bonificacion, amortizacion, costeProductos };
 
   const cont = $('#resultados');
-  cont.innerHTML = renderResultados({ res, imp, escenarios, bonificacion, amortizacion }, { conGuardar: true });
+  cont.innerHTML = renderResultados({ res, imp, escenarios, bonificacion, amortizacion, costeProductos }, { conGuardar: true });
   // Eventos de los botones y controles recién renderizados.
   $('#btnGuardar')?.addEventListener('click', abrirModalGuardar);
   $('#btnNuevoCalculo')?.addEventListener('click', nuevoCalculo);
+  $('#btnUsarCoste')?.addEventListener('click', usarCosteEnGastosVinculados);
   bindControlesCuadro(cont);
   cont.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Copia el coste de productos deducido del TAE al campo «Gastos vinculados» y recalcula.
+function usarCosteEnGastosVinculados() {
+  const cp = estado.ultimoResultado?.costeProductos;
+  if (!cp || !cp.hayProductos) return;
+  const el = document.getElementById('gastosVinculados');
+  if (el) el.value = String(Math.round(cp.costeAnual));
+  toast('Coste aplicado a gastos vinculados');
+  calcularYMostrar();
 }
 
 function nuevoCalculo() {
@@ -344,10 +362,11 @@ function sincronizarPromoUI() {
   $('#promoVariableCampos').classList.toggle('oculto', !(v && v.checked));
 }
 
-// Muestra u oculta las secciones opcionales (bonificación, amortización).
+// Muestra u oculta las secciones opcionales (bonificación, amortización, TAE).
 function sincronizarOpcionalesUI() {
   $('#bonifCampos').classList.toggle('oculto', !$('#bonifActiva').checked);
   $('#amortCampos').classList.toggle('oculto', !$('#amortActiva').checked);
+  $('#taeCampos').classList.toggle('oculto', !$('#taeActiva').checked);
 }
 
 // Etiqueta del campo "mes" según la periodicidad de la amortización.
@@ -506,7 +525,9 @@ async function confirmarBorrado(id, tarjeta) {
 
 function aplicarConfigAlFormulario(cfg, datosVivienda, amort) {
   cambiarTipo(cfg.tipo);
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val ?? '') === '' ? '' : String(val).replace('.', ','); };
+  // Los <input type="number"> exigen punto como separador decimal en su .value
+  // (con coma lo rechazan y el campo queda vacío).
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val ?? '') === '' ? '' : String(val); };
 
   // Limpia los toggles de tramo inicial; la rama del tipo cargado los reactiva.
   $('#promoFijaActiva').checked = false;
@@ -550,6 +571,11 @@ function aplicarConfigAlFormulario(cfg, datosVivienda, amort) {
   $('#bonifActiva').checked = !!cfg.bonifActiva;
   set('bonifIncremento', cfg.bonifActiva ? cfg.bonifIncremento : '');
   $('#detallesBonif').open = !!cfg.bonifActiva;
+
+  // TAE del banco.
+  $('#taeActiva').checked = !!cfg.taeActiva;
+  set('taeObjetivo', cfg.taeActiva ? cfg.taeObjetivo : '');
+  $('#detallesTae').open = !!cfg.taeActiva;
 
   // Amortización anticipada.
   $('#amortActiva').checked = !!amort;
@@ -721,7 +747,7 @@ function bindAjustes() {
   const sincManualUI = () => {
     toggleManual.checked = estado.ajustes.usarEuriborManual;
     campoManual.classList.toggle('oculto', !estado.ajustes.usarEuriborManual);
-    if (estado.ajustes.euriborManual != null) inputManual.value = String(estado.ajustes.euriborManual).replace('.', ',');
+    if (estado.ajustes.euriborManual != null) inputManual.value = String(estado.ajustes.euriborManual);
   };
   sincManualUI();
 
@@ -816,9 +842,10 @@ function bindEventos() {
   // Toggles del tramo inicial promocional (fija / variable)
   $('#promoFijaActiva').addEventListener('change', sincronizarPromoUI);
   $('#promoVariableActiva').addEventListener('change', sincronizarPromoUI);
-  // Toggles de secciones opcionales (bonificación, amortización)
+  // Toggles de secciones opcionales (bonificación, amortización, TAE)
   $('#bonifActiva').addEventListener('change', sincronizarOpcionalesUI);
   $('#amortActiva').addEventListener('change', sincronizarOpcionalesUI);
+  $('#taeActiva').addEventListener('change', sincronizarOpcionalesUI);
   // Segmented de opciones (periodicidad y modo de amortización)
   $$('.seg-opciones .seg').forEach((b) => b.addEventListener('click', () => {
     b.parentElement.querySelectorAll('.seg').forEach((s) => s.classList.toggle('activa', s === b));

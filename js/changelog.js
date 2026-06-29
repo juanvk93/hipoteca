@@ -6,9 +6,26 @@
 //  actualización de los recursos en los dispositivos.
 // ============================================================================
 
-export const VERSION = '1.2.0';
+export const VERSION = '1.2.2';
 
 export const CAMBIOS = [
+  {
+    version: '1.2.2',
+    fecha: '2026-06-29',
+    titulo: 'Coste de productos desde el TAE',
+    cambios: [
+      'Nuevo: a partir del TAE que anuncia el banco y tu TIN, la app estima el coste anual de los productos vinculados (seguros, etc.) que explica esa diferencia.',
+      'Botón para aplicar ese coste estimado directamente a «Gastos vinculados» y recalcular.',
+    ],
+  },
+  {
+    version: '1.2.1',
+    fecha: '2026-06-29',
+    titulo: 'Corrección',
+    cambios: [
+      'Corregido: al abrir una hipoteca guardada, los campos con decimales (TIN, comisión, Euríbor) podían quedar vacíos.',
+    ],
+  },
   {
     version: '1.2.0',
     fecha: '2026-06-28',

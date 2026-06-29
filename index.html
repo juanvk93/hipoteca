@@ -321,6 +321,31 @@
           </div>
         </details>
 
+        <!-- TAE del banco → deducir coste de productos -->
+        <details id="detallesTae" class="acordeon">
+          <summary>
+            <span>TAE del banco <em>(coste de productos)</em></span>
+            <svg class="chevron" viewBox="0 0 24 24" width="20" height="20"><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <div class="acordeon-cuerpo">
+            <label class="toggle">
+              <input type="checkbox" id="taeActiva" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="toggle-label">Deducir productos desde el TAE</span>
+            </label>
+            <div id="taeCampos" class="grupo-promo oculto">
+              <div class="campo">
+                <label for="taeObjetivo">TAE que anuncia el banco</label>
+                <div class="input-sufijo">
+                  <input id="taeObjetivo" type="number" inputmode="decimal" min="0" step="0.01" placeholder="4,60" />
+                  <span class="sufijo">%</span>
+                </div>
+              </div>
+              <p class="nota">Comparamos esta TAE con la calculada a partir de tu TIN y estimamos el coste anual de los productos vinculados (seguros, etc.) que la explica.</p>
+            </div>
+          </div>
+        </details>
+
         <button type="submit" class="btn-principal">Calcular hipoteca</button>
       </form>
 

@@ -336,6 +336,49 @@ export function calcularBonificacion(cfg) {
 }
 
 /**
+ * Deduce el coste anual de los productos vinculados que explica una TAE objetivo.
+ *
+ * La cuota se calcula con el TIN; el TAE que anuncia el banco suele ser mayor por
+ * comisiones y productos vinculados (seguros, etc.) que se pagan aparte. Dada la
+ * TAE objetivo del banco, se resuelve qué prima anual de productos (pagada
+ * mensualmente) iguala la TAE de los flujos a esa TAE objetivo:
+ *
+ *   capital = comisión + Σ (cuota_t + prima/12) / (1 + i)^t
+ *
+ * donde i es la tasa mensual equivalente a la TAE objetivo. Como la ecuación es
+ * lineal en la prima, se despeja directamente.
+ *
+ * @param {object} cfg  Configuración de la hipoteca (define el TIN/cuotas).
+ * @param {number} taeObjetivo  TAE anual en % que anuncia el banco.
+ * @returns {object} { taeObjetivo, taeBase, costeAnual, costeMensual, costeTotal, hayProductos }
+ */
+export function deducirCosteProductos(cfg, taeObjetivo) {
+  const res = calcularHipoteca(cfg);
+  const cuotas = res.filasAmortizacion.map((f) => f.cuota);
+  const comision = res.comisionApertura;
+  const iObj = Math.pow(1 + taeObjetivo / 100, 1 / 12) - 1;
+
+  let vpCuotas = 0;
+  let vpFactor = 0;
+  for (let t = 1; t <= cuotas.length; t++) {
+    const d = Math.pow(1 + iObj, t);
+    vpCuotas += cuotas[t - 1] / d;
+    vpFactor += 1 / d;
+  }
+
+  const costeMensual = vpFactor > 0 ? (res.capital - comision - vpCuotas) / vpFactor : 0;
+  const costeAnual = costeMensual * 12;
+  return {
+    taeObjetivo,
+    taeBase: res.tae,
+    costeAnual: Math.max(0, costeAnual),
+    costeMensual: Math.max(0, costeMensual),
+    costeTotal: Math.max(0, costeAnual) * res.anosTotal,
+    hayProductos: costeAnual > 0.5,
+  };
+}
+
+/**
  * Genera escenarios de Euríbor para hipotecas variables y mixtas.
  * Recalcula la hipoteca aplicando distintos incrementos al Euríbor.
  * @param {object} cfg  Configuración base.

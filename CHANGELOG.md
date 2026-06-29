@@ -3,6 +3,23 @@
 Todas las versiones notables de la **Calculadora de Hipoteca** se documentan aquí.
 El formato sigue, de forma aproximada, [Keep a Changelog](https://keepachangelog.com/es-ES/).
 
+## [1.2.2] — 2026-06-29
+
+### Añadido
+
+- **Coste de productos desde el TAE**: dado el TAE que anuncia el banco y tu TIN, la app estima
+  el coste anual de los productos vinculados (seguros, etc.) que explica la diferencia entre
+  ambos. La cuota se sigue calculando con el TIN; el TAE solo sirve para revelar ese coste oculto.
+  Incluye un botón para aplicar ese coste a «Gastos vinculados» y recalcular automáticamente.
+
+## [1.2.1] — 2026-06-29
+
+### Corregido
+
+- Al abrir una hipoteca guardada (o al prerrellenar el Euríbor), los campos con decimales
+  (TIN, comisión de apertura, Euríbor) quedaban vacíos: los `<input type="number">` exigen punto
+  como separador decimal en su `.value` y se les estaba asignando con coma.
+
 ## [1.2.0] — 2026-06-28
 
 ### Añadido

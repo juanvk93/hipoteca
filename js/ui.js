@@ -64,7 +64,7 @@ export function toast(mensaje) {
  * @param {object} opts   { conGuardar: boolean }
  * @returns {string} HTML
  */
-export function renderResultados({ res, imp, escenarios, bonificacion, amortizacion }, opts = {}) {
+export function renderResultados({ res, imp, escenarios, bonificacion, amortizacion, costeProductos }, opts = {}) {
   const partes = [];
 
   // --- Cuota(s) principal(es) ---
@@ -129,6 +129,11 @@ export function renderResultados({ res, imp, escenarios, bonificacion, amortizac
       ${res.gastosVinculados > 0 ? `<div class="kv"><span class="k">Gastos vinculados <small>(${num(res.anosTotal)} años)</small></span><span class="v">${euro(res.gastosVinculados)}</span></div>` : ''}
       <div class="kv total"><span class="k">Coste total a reembolsar</span><span class="v">${euro(res.importeFinal)}</span></div>
     </div>`);
+
+  // --- Coste de productos deducido del TAE del banco ---
+  if (costeProductos) {
+    partes.push(renderCosteProductos(costeProductos));
+  }
 
   // --- ¿Compensa la bonificación? ---
   if (bonificacion) {
@@ -201,6 +206,31 @@ function renderEscenarios(escenarios, tipo) {
           <tbody>${filas}</tbody>
         </table>
       </div>
+    </div>`;
+}
+
+function renderCosteProductos(c) {
+  if (!c.hayProductos) {
+    return `
+      <div class="card">
+        <h3>Coste de productos (según el TAE)</h3>
+        <p class="muted">La TAE indicada (${pct(c.taeObjetivo)}) no supera a la calculada con tu TIN (${pct(c.taeBase)}), así que no hay coste de productos vinculados que deducir.</p>
+      </div>`;
+  }
+  return `
+    <div class="card">
+      <h3>Coste de productos vinculados (según el TAE)</h3>
+      <p class="muted" style="margin:-6px 0 12px">El TAE del banco es mayor que el de tu TIN; la diferencia equivale a este coste de productos.</p>
+      <div class="comparativa2">
+        <div class="opcion"><span class="o-tit">TAE del banco</span><span class="o-val">${pct(c.taeObjetivo)}</span></div>
+        <div class="opcion"><span class="o-tit">TAE solo con tu TIN</span><span class="o-val">${pct(c.taeBase)}</span></div>
+      </div>
+      <div class="metricas" style="margin-top:12px">
+        <div class="metrica"><span class="m-etq">Coste estimado</span><span class="m-val">${euro0(c.costeAnual)}<span style="font-size:.9rem;font-weight:600">/año</span></span></div>
+        <div class="metrica"><span class="m-etq">A lo largo del préstamo</span><span class="m-val">${euro0(c.costeTotal)}</span></div>
+      </div>
+      <p class="nota" style="margin:12px 0">≈ ${euro(c.costeMensual)}/mes en productos vinculados.</p>
+      <button type="button" class="btn-secundario" id="btnUsarCoste" data-coste="${Math.round(c.costeAnual)}">Usar en «Gastos vinculados» y recalcular</button>
     </div>`;
 }
 

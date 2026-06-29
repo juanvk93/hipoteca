@@ -6,5 +6,6 @@ await import('./calculos.test.mjs');
 await import('./impuestos.test.mjs');
 await import('./bonificacion.test.mjs');
 await import('./amortizacion.test.mjs');
+await import('./tae.test.mjs');
 
 process.exit(resumen() > 0 ? 1 : 0);

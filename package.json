@@ -1,6 +1,6 @@
 {
   "name": "calculadora-hipoteca",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "PWA para el cálculo y comparación de hipotecas (fija, variable y mixta).",
   "type": "module",
   "private": true,
